@@ -1,0 +1,34 @@
+# SimbaScribe synth — runs twice a day (the digest is a daily-rhythm summary;
+# real-time questions are handled by the Pulse agent instead).
+#
+# Schedule: 05:30 and 12:30 UTC (tune to your team's morning + evening). Each run
+# summarizes EVERYTHING since the previous run (the synth windows on a rowid
+# watermark, not a fixed clock window), so the morning run naturally covers
+# overnight + morning and the evening run covers the afternoon.
+#
+# Deploy as a root-owned file at /etc/cron.d/simbascribe-synth (mode 0644).
+# Replace <writer-user> with the trusted user that owns the data, and <repo-path>
+# with the absolute path to this checkout.
+#
+# WHY SYSTEM CRON, NOT PM2:
+#   PM2's fork-mode wrapper can deadlock at require-time with better-sqlite3 + a
+#   non-trivial module graph. The synth touches better-sqlite3, so it must NOT run
+#   via `pm2 cron_restart`. System cron with an absolute Node path is the supported
+#   pattern.
+#
+# WHY flock:
+#   A slow run (slow model response, large window) could overrun into the next
+#   scheduled run. flock -n serializes runs so two can never overlap and double-post.
+#
+# Hardcode the absolute Node path (don't rely on PATH / a version manager default
+# in cron's environment) — e.g. an nvm path like
+# /home/<writer-user>/.nvm/versions/node/v20.20.1/bin/node.
+#
+# WHY the `cd`:
+#   The synth loads .env via dotenv, which reads from the process working
+#   directory. Cron does NOT run in the repo dir, so without `cd` the .env isn't
+#   found and every required var throws. `cd` first, then flock+node.
+
+SHELL=/bin/bash
+
+30 5,12 * * * <writer-user> cd <repo-path> && /usr/bin/flock -n /tmp/simbascribe-synth.lock /home/<writer-user>/.nvm/versions/node/v20.20.1/bin/node dist/synth/index.js >> /home/<writer-user>/log/simbascribe-synth.log 2>&1

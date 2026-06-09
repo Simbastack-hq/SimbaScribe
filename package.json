@@ -1,0 +1,38 @@
+{
+  "name": "simbascribe",
+  "version": "0.1.0",
+  "description": "Self-hostable team memory + a thin, self-maintaining todo tracker for a team that lives in Discord.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@8.15.9",
+  "engines": {
+    "node": ">=20.20.1"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && cp -f src/db/schema.sql dist/db/schema.sql && cp -f src/tracker/schema.sql dist/tracker/schema.sql && cp -f src/profile/system-prompt.skeleton.txt dist/profile/system-prompt.skeleton.txt && cp -f src/profile/tracker-prompt.skeleton.txt dist/profile/tracker-prompt.skeleton.txt",
+    "init": "node scripts/init-workspace.mjs",
+    "start": "node dist/listener/index.js",
+    "mcp": "node dist/mcp-server/index.js",
+    "snapshot": "node dist/snapshot/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.100.1",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "better-sqlite3": "11.7.0",
+    "discord.js": "14.16.3",
+    "dotenv": "16.4.5",
+    "pino": "9.5.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.12",
+    "@types/node": "20.17.10",
+    "pino-pretty": "13.0.0",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

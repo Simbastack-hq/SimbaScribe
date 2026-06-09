@@ -1,0 +1,56 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# workspace profiles + any local-only artifacts (real names/clients/goldens).
+# NEVER committed. Only profiles/example.workspace.json is committed.
+config/*.local.*
+profiles/*.local.*
+
+# not-for-public working docs (internal names/paths/clients) — keep OUT of any
+# public tree. The committed design specs in docs/plans/*.md predate this and
+# should be excluded when creating the public repo (see the launch checklist).
+docs/blog-notes/
+docs/plans/*handoff*
+
+# real knowledge-base content (per-company, may be sensitive). Only kb/example/
+# is committed; put a real in-repo KB at kb/<name>.local/ (or point
+# SIMBASCRIBE_KB_PATH at a dir outside the repo).
+kb/*.local/
+
+# data
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# test artifacts
+coverage/
+.nyc_output/

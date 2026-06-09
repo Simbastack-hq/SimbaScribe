@@ -1,0 +1,36 @@
+{
+  "botName": "Scribe",
+  "workspaceName": "the Northwind team",
+  "teamOverview": "The team is Ada, Ben, Chiara, Diego, and Erin — five engineers\nbuilding Northwind, a small SaaS product, across its web app, mobile app,\nand infrastructure.",
+  "offPlatformNote": "IMPORTANT: Priya (the product designer) works async over email and is NOT\non Discord. Do NOT expect updates from her in this corpus, and do NOT mark\nitems as \"waiting on her\" when you don't see her respond.",
+  "languageGuidance": "",
+  "signals": {
+    "commitment": "Commitment markers (treat as commitment signal):\n- \"I'll [verb]\", \"I'll fix X today\", \"let me [verb]\", \"on it\"\n- \"by EOD\", \"ship it tomorrow\", \"I'll have it done by Friday\"\n- \"taking this\", \"I've got this one\", \"owning the deploy\"\n\nNOT a commitment (treat as context):\n- \"I'll look at it later\" with no deadline → context\n- \"maybe we should…\" → soft, context unless committed\n- \"sure\", \"ok\", \"sounds good\" → acknowledgment only\n- \"if I get time\" → conditional, not committed\n- Reading-list-style \"this is interesting\" reactions",
+    "decision": "Markers:\n- \"let's do X\", \"going with X\", \"we'll use X\"\n- \"decision: X\", \"X it is\", \"locking X in\"\n- Config / spec / pricing changes (\"set the request timeout to 30s\")\n- Priority shifts (\"X is higher priority than Y\", \"full focus on X now\")\n- Tool / library choices (\"using Postgres for the job queue\")",
+    "openQuestion": "Markers:\n- \"?\", \"how do we…\", \"what's the…\", \"which one…\"\n- \"when is…\", \"where is…\", \"who owns…\"\n- Sentences ending with a question mark that don't get a clear response\n- Tag-without-response: \"@Person ?\" with no follow-up in window",
+    "blocker": "Markers:\n- \"stuck\", \"blocked\", \"can't proceed\"\n- \"error\", \"crashing\", \"not working\", \"broken\"\n- \"waiting for X\", \"depends on X\"\n- Server / API / build outages",
+    "status": "Markers:\n- \"done\", \"shipped\", \"fixed\", \"merged\", \"deployed\", \"pushed\"\n- \"off Mon-Tue\", \"out today\", \"back tomorrow\"\n- \"working on it\", \"still working\" (when it's a meaningful in-progress flag)\n- \"running the migration on prod\"",
+    "context": "Examples:\n- \"the staging API looks degraded today\" (affects everyone's workflow)\n- \"the new linter caught a bug our tests missed\" (tooling signal)\n- \"Library X just shipped v3, worth a look\" (industry-watch)",
+    "noise": "- Single-word acks: \"ok\", \"sure\", \"thanks\", \"cool\", \"👍\"\n- Emoji-only messages\n- Memes, banter, off-topic chatter\n- \"Lol\", \"haha\"\n- Philosophical / theoretical discussions without action items\n- Code snippets pasted as samples (unless explicitly committed-to)\n- Quoting / replying to old messages without new signal"
+  },
+  "channelContext": "- **engineering**: primary dev work. High commitment density. Concrete\n  tasks, PRs, deploy events.\n- **product**: roadmap, specs, prioritization. Watch for decisions and\n  priority shifts more than commitments.\n- **bugs**: reported defects + triage. Blockers and status updates common.\n- **infra**: deploys, servers, CI. Watch for outages and infra blockers.\n- **random**: off-topic + memes. EXPECT ~95% noise classification. Only\n  surface a real action item buried in there (rare).",
+  "canonicalization": [
+    { "from": "ada.codes", "to": "Ada" },
+    { "from": "bumblebee_ben", "to": "Ben" },
+    { "from": "@eng-team", "to": "the team" }
+  ],
+  "fewShotHeading": "Worked examples",
+  "fewShotExamples": "Commitment example:\n> Ben: \"still digging into the timeout bug. running it against staging now.\"\n> Ada: \"think it lands today?\"\n> Ben: \"yeah, I'll have the fix in by EOD.\"\n\nOutput: **Ben** → fix the request-timeout bug (PR against staging) by EOD ([msg](...))\n\nDecision example:\n> Ada: \"Todo - let's move the job queue from Redis to Postgres\"\n> Ada: \"the web worker and the cron both\"\n\nOutput: Moved the job queue from Redis to Postgres (web worker + cron) ([msg](...))\n\nBlocker example:\n> Chiara: \"mobile build failing on Android only, iOS is fine. some native\n> module mismatch, can't ship the release.\"\n\nOutput: **Chiara**: Android release build broken (iOS fine) — native module\nmismatch blocking the release ([msg](...))\n\nOpen question example:\n> Ada: \"@diego is the staging migration done?\"\n> Diego: [hasn't responded by window close]\n\nOutput: Ada: status on the staging migration? (Diego hasn't responded in window) ([msg](...))\n\nStatus example:\n> Chiara: \"shipped it. the Android build is green again — turned out to be a\n> stale native cache, not the module.\"\n\nOutput: **Chiara**: Android build fixed and release shipped — root cause was a\nstale native cache ([msg](...))\n\nNoise example (DO NOT surface):\n> Ben: \"anyone else think the new logo looks like a potato 😂\"\n> Ada: \"lol kinda\"\n\nOutput: nothing — banter, no action.",
+  "confirmEmoji": "✅",
+  "vetoEmoji": "❌",
+  "provider": {
+    "baseUrl": "https://api.anthropic.com",
+    "apiKeyEnv": "MODEL_API_KEY",
+    "model": "claude-sonnet-4-6"
+  },
+  "aging": {
+    "todoResurfaceDays": 5,
+    "todoArchiveGraceDays": 9,
+    "ideaRevisitDays": 60
+  }
+}

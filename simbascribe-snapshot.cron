@@ -1,0 +1,39 @@
+# SimbaScribe corpus snapshot — runs every 2 minutes.
+#
+# Publishes a read-only, standalone copy of the live corpus DB to a shared path
+# the Pulse MCP server (running as the unprivileged <reader-user>) can read, so the
+# agent can query the team brain WITHOUT touching the live database. The snapshot
+# also serves as the only backup of the corpus.
+#
+# Deploy as a root-owned file at /etc/cron.d/simbascribe-snapshot (mode 0644).
+# Replace <writer-user> / <reader-user> / <repo-path> with your values.
+#
+# WHY VACUUM INTO (in the code, not here): it yields a non-WAL standalone file
+# with no -wal/-shm sidecars, which a different user can open read-only in a
+# directory it cannot write to. A plain .backup would copy WAL mode and fail.
+#
+# WHY system cron, not PM2: same as the synth — PM2 fork-mode can deadlock with
+# better-sqlite3. Hardcode the absolute Node path.
+#
+# WHY flock: a slow snapshot must never overlap the next 2-minute tick.
+#
+# WHY the `cd`: the snapshot loads .env via dotenv, which reads from the process
+# working directory. Cron does not start in the repo dir, so cd first.
+#
+# PREREQUISITE (one-time, as root): the destination dir must exist, be writable
+# by <writer-user>, and be readable by <reader-user>. Using a shared group:
+#   sudo groupadd -f ssbrain
+#   sudo install -d -o <writer-user> -g ssbrain -m 2750 /srv/ssbrain   # 2 = setgid: new files inherit group ssbrain
+#   sudo usermod -aG ssbrain <reader-user>
+# Then set SIMBASCRIBE_SNAPSHOT_DB_PATH=/srv/ssbrain/snapshot.db in the writer's
+# .env AND set the SAME absolute path in the reader's MCP-server env (the writer
+# writes it, the reader reads it — they must agree).
+#
+# Mode 2750 (group r-x, NOT group-writable) is deliberate: the reader can read the
+# dir but cannot create/swap files in it, so it can't plant a symlink for the
+# atomic rename to follow. Never make this dir group-writable.
+# Note: `usermod -aG` takes effect on the reader's next login/service restart.
+
+SHELL=/bin/bash
+
+*/2 * * * * <writer-user> cd <repo-path> && /usr/bin/flock -n /tmp/simbascribe-snapshot.lock /home/<writer-user>/.nvm/versions/node/v20.20.1/bin/node dist/snapshot/index.js >> /home/<writer-user>/log/simbascribe-snapshot.log 2>&1
