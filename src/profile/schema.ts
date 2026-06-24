@@ -68,6 +68,21 @@ const AgingSchema = z.object({
 
 const DEFAULT_AGING = { todoResurfaceDays: 5, todoArchiveGraceDays: 9, ideaRevisitDays: 60 };
 
+/**
+ * A single name→Discord-ID mapping for opt-in @-mention tagging in the digest.
+ * `name` is the CANONICAL name as printed in the digest prose; `discordId` is the
+ * teammate's Discord user snowflake. STRICT on the ID SHAPE so a typo is caught at
+ * load rather than silently pinging the wrong person — shape only, though: a
+ * valid-but-wrong snowflake is uncatchable, so the roster must be curated.
+ */
+const MentionRosterEntrySchema = z.object({
+  name: z.string().min(1),
+  discordId: z.string().regex(/^\d{17,20}$/, 'discordId must be a Discord snowflake (17–20 digits)'),
+});
+export type MentionRosterEntry = z.infer<typeof MentionRosterEntrySchema>;
+
+const DEFAULT_MENTIONS: { enabled: boolean; roster: MentionRosterEntry[] } = { enabled: false, roster: [] };
+
 export const WorkspaceProfileSchema = z.object({
   /** The bot's display name (e.g. "SimbaScribe"). */
   botName: z.string().min(1),
@@ -123,6 +138,21 @@ export const WorkspaceProfileSchema = z.object({
    * to break the live digest (the digest never reads it).
    */
   aging: AgingSchema.catch(DEFAULT_AGING).default(DEFAULT_AGING),
+  /**
+   * Opt-in @-mention tagging. When `enabled` AND the roster is non-empty, the
+   * digest replaces each rostered person's FIRST appearance with a Discord ping.
+   * LENIENT (digest-touching, like confirmEmoji/aging): a present-but-invalid
+   * block degrades to OFF rather than aborting the live digest; absent → OFF. The
+   * `.catch` is intentionally SILENT (matching every other `.catch` here) — the
+   * loud signal lives at the use-site in synth/index.ts, after the log level is set.
+   */
+  mentions: z
+    .object({
+      enabled: z.boolean().default(false),
+      roster: z.array(MentionRosterEntrySchema).default([]),
+    })
+    .catch(DEFAULT_MENTIONS)
+    .default(DEFAULT_MENTIONS),
 });
 
 export type WorkspaceProfile = z.infer<typeof WorkspaceProfileSchema>;

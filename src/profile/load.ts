@@ -2,8 +2,38 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseProfile, type WorkspaceProfile } from './schema.js';
+import { log } from '../log.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * The `mentions` block is digest-touching config, so the schema degrades a
+ * malformed one to OFF rather than aborting the live digest (`.catch`). But unlike
+ * `aging`/`confirmEmoji` (which degrade to a working DEFAULT), mentions degrades to
+ * OFF — silently turning off a feature the deployer explicitly turned ON. That's
+ * surprising, so warn loudly here (the load layer, where we still have the raw
+ * input AND a logger) — mirroring how `buildSurfacingDeps` announces an opted-in
+ * feature it can't run. Heuristic: the raw block looked intended-on but parsed off.
+ */
+function warnIfMentionsDegraded(raw: unknown, profile: WorkspaceProfile): void {
+  if (!isRecord(raw)) return;
+  const rawMentions = raw.mentions;
+  if (!isRecord(rawMentions)) return;
+  const intendedOn =
+    rawMentions.enabled === true ||
+    (Array.isArray(rawMentions.roster) && rawMentions.roster.length > 0);
+  const degradedToOff = !profile.mentions.enabled && profile.mentions.roster.length === 0;
+  if (intendedOn && degradedToOff) {
+    log.warn(
+      'workspace profile "mentions" is set but invalid — @-mention tagging is DISABLED this run. ' +
+        'Check each discordId is a 17–20 digit Discord user snowflake.',
+    );
+  }
+}
 
 /** Env var holding the path to the active workspace profile. */
 export const PROFILE_ENV = 'SIMBASCRIBE_WORKSPACE_PROFILE';
@@ -69,5 +99,7 @@ export function loadProfile(path?: string): WorkspaceProfile {
       `Workspace profile at ${resolved} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  return parseProfile(json);
+  const profile = parseProfile(json);
+  warnIfMentionsDegraded(json, profile);
+  return profile;
 }

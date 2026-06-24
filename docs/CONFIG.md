@@ -42,6 +42,7 @@ public later is simply "the real profile was never committed."
 | `vetoEmoji` | no | string | Veto/dismiss reaction (default `❌`). |
 | `provider` | yes | object | The model provider (see below). |
 | `aging` | no | object | Tracker nag-loop thresholds in days (see below). |
+| `mentions` | no | object | Opt-in Discord @-mention tagging in the digest (see below). Off by default. |
 
 ### `signals`
 
@@ -80,6 +81,39 @@ is resurfaced once; if still untouched `todoArchiveGraceDays` later it auto-arch
 An idea gets one gentle "revisit?" at `ideaRevisitDays`. Decisions never age.
 Tracker-only fields are **lenient** — a malformed value degrades to the default
 rather than ever breaking the digest.
+
+### `mentions`
+
+```json
+"mentions": {
+  "enabled": true,
+  "roster": [
+    { "name": "Jordan", "discordId": "111111111111111111" },
+    { "name": "Priya",  "discordId": "222222222222222222" }
+  ]
+}
+```
+
+Opt-in @-mention tagging. When `enabled` **and** the roster is non-empty, the
+digest replaces each rostered person's **first** appearance with a Discord ping
+(`<@id>`), so they get one notification per daily digest. Off by default — absent
+or `"enabled": false` posts exactly as before, with no pings.
+
+- `name` — the **canonical** name as it appears in the digest prose (the same name
+  your `canonicalization` rules resolve to). Matching is case-sensitive, on whole
+  words, longest-name-first (so `"James A"` wins over `"James"`).
+- `discordId` — the teammate's Discord **user ID** (17–20 digit snowflake; enable
+  Developer Mode in Discord, right-click a user → *Copy User ID*). A value that
+  isn't a snowflake is rejected.
+- The flag is a one-flip pause switch: set `"enabled": false` to mute all pings
+  without deleting your roster.
+
+Safety: only the listed IDs can ever ping — `@everyone`/`@here`/role mentions stay
+suppressed exactly as before. `mentions` touches the live digest, so like the
+other digest-touching fields it is **lenient**: a malformed block degrades to OFF
+(no pings) rather than breaking the post. Note the match is by name, so a roster
+name that's also a common word can mis-tag — curate the roster. Test it safely
+with `--dry-run` (it prints the tagged IDs without posting).
 
 ## Behaviour-equivalence (for existing deployments)
 

@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { parseProfile, WorkspaceProfileSchema } from '../src/profile/schema.js';
 import { interpolate, renderSystemPrompt, renderTrackerPrompt } from '../src/profile/render.js';
 import { loadProfile, resolveProfilePath, EXAMPLE_PROFILE_PATH, PROFILE_ENV } from '../src/profile/load.js';
+import { log } from '../src/log.js';
+
+const writeTempProfile = (value: unknown): string => {
+  const f = join(mkdtempSync(join(tmpdir(), 'ss-prof-')), 'p.json');
+  writeFileSync(f, JSON.stringify(value));
+  return f;
+};
 
 const EXAMPLE = JSON.parse(readFileSync(EXAMPLE_PROFILE_PATH, 'utf-8'));
 
@@ -59,6 +66,27 @@ describe('parseProfile', () => {
     expect(p.fewShotHeading).toBe('Worked examples');
     expect(p.canonicalization).toEqual([]);
     expect(p.aging).toEqual({ todoResurfaceDays: 5, todoArchiveGraceDays: 9, ideaRevisitDays: 60 });
+    expect(p.mentions).toEqual({ enabled: false, roster: [] });
+  });
+
+  it('parses a valid mentions block (enabled + roster)', () => {
+    const p = parseProfile({
+      ...EXAMPLE,
+      mentions: { enabled: true, roster: [{ name: 'Ada', discordId: '111111111111111111' }] },
+    });
+    expect(p.mentions.enabled).toBe(true);
+    expect(p.mentions.roster).toEqual([{ name: 'Ada', discordId: '111111111111111111' }]);
+  });
+
+  // mentions touches the LIVE digest → it must degrade, never abort (like aging /
+  // confirmEmoji). A typo'd ID (not a 17–20 digit snowflake) disables tagging for
+  // the run instead of pinging a stranger or breaking the post.
+  it('degrades a present-but-invalid mentions block to OFF (never aborts the digest)', () => {
+    const p = parseProfile({
+      ...EXAMPLE,
+      mentions: { enabled: true, roster: [{ name: 'Ada', discordId: 'not-a-snowflake' }] },
+    });
+    expect(p.mentions).toEqual({ enabled: false, roster: [] });
   });
 
   it('rejects a profile missing a required field, naming the field', () => {
@@ -178,6 +206,33 @@ describe('profile loading', () => {
     const f = join(mkdtempSync(join(tmpdir(), 'ss-prof-')), 'empty.json');
     writeFileSync(f, '{}');
     expect(() => loadProfile(f)).toThrow(/Invalid workspace profile/);
+  });
+
+  // A typo'd roster degrades to OFF (digest-safe) but must NOT do so silently — an
+  // opt-in feature the deployer turned on shouldn't vanish without a word.
+  it('loadProfile warns loudly when an intended-on mentions block is invalid (then degrades to OFF)', () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation((() => {}) as never);
+    try {
+      const f = writeTempProfile({ ...EXAMPLE, mentions: { enabled: true, roster: [{ name: 'X', discordId: 'nope' }] } });
+      const p = loadProfile(f);
+      expect(p.mentions).toEqual({ enabled: false, roster: [] }); // degraded, digest safe
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]![0])).toMatch(/mentions.*invalid|DISABLED/i);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('loadProfile does NOT warn for a valid mentions block', () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation((() => {}) as never);
+    try {
+      const f = writeTempProfile({ ...EXAMPLE, mentions: { enabled: true, roster: [{ name: 'Ada', discordId: '111111111111111111' }] } });
+      const p = loadProfile(f);
+      expect(p.mentions.enabled).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

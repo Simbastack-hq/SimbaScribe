@@ -6,6 +6,7 @@ import { parseArgs } from './args.js';
 import { runModel } from './model.js';
 import { formatWindow } from './window.js';
 import { postToWebhook } from './post.js';
+import { applyMentions } from './mentions.js';
 import { runTrackerStep, type SurfacingDeps } from '../tracker/tracker-step.js';
 import { runReconcileModel } from '../tracker/reconcile-model.js';
 import { makeReactionReader, makeItemPoster } from '../tracker/discord-rest.js';
@@ -185,6 +186,17 @@ async function main(): Promise<void> {
     const result = await runModel(userMessage, config);
     const isSkip = result.text === SKIP_TOKEN;
 
+    // ---- Opt-in @-mention tagging (deterministic, post-model) ----------------
+    // Replace each rostered person's FIRST appearance with a Discord ping. OFF by
+    // default; only runs when enabled AND the roster is non-empty. Never applied
+    // to a SKIP_POST sentinel (it isn't posted). The substituted text is what we
+    // both store and post, so the audit row matches what hit the channel.
+    const mentionsCfg = config.profile.mentions;
+    const mentionsActive = !isSkip && mentionsCfg.enabled && mentionsCfg.roster.length > 0;
+    const { text: postText, mentionedIds } = mentionsActive
+      ? applyMentions(result.text, mentionsCfg.roster)
+      : { text: result.text, mentionedIds: [] as string[] };
+
     // ---- Dry run: print, don't post, don't advance --------------------------
     if (args.dryRun) {
       log.info(
@@ -193,12 +205,17 @@ async function main(): Promise<void> {
           messages: messages.length,
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
+          mentions: { enabled: mentionsCfg.enabled, rosterSize: mentionsCfg.roster.length, tagged: mentionedIds.length },
         },
         'dry-run complete (no post, watermark unchanged)',
       );
       process.stdout.write('\n===== SYNTH DRY-RUN OUTPUT =====\n');
-      process.stdout.write(isSkip ? 'SKIP_POST (no signal in window)\n' : `${result.text}\n`);
-      process.stdout.write('================================\n\n');
+      process.stdout.write(isSkip ? 'SKIP_POST (no signal in window)\n' : `${postText}\n`);
+      process.stdout.write('================================\n');
+      if (mentionsActive) {
+        process.stdout.write(`(would tag ${mentionedIds.length} teammate(s): ${mentionedIds.join(', ') || 'none'})\n`);
+      }
+      process.stdout.write('\n');
       return;
     }
 
@@ -228,13 +245,13 @@ async function main(): Promise<void> {
       windowStartRowid,
       windowEndRowid: maxRowid,
       messagesProcessed: messages.length,
-      digestText: result.text,
+      digestText: postText,
       model: result.model,
       inputTokens: result.inputTokens,
       outputTokens: result.outputTokens,
     });
 
-    const outcome = await postToWebhook(config.webhookUrl!, result.text);
+    const outcome = await postToWebhook(config.webhookUrl!, postText, mentionedIds);
 
     if (outcome.chunksPosted === 0) {
       // Nothing delivered → safe to retry. Don't advance the watermark.
@@ -259,7 +276,14 @@ async function main(): Promise<void> {
 
     markPostedAndAdvance(db, runId, nowMs(), maxRowid);
     log.info(
-      { runId, model: result.model, messages: messages.length, chunks: outcome.totalChunks, outputTokens: result.outputTokens },
+      {
+        runId,
+        model: result.model,
+        messages: messages.length,
+        chunks: outcome.totalChunks,
+        outputTokens: result.outputTokens,
+        mentions: { enabled: mentionsCfg.enabled, rosterSize: mentionsCfg.roster.length, tagged: mentionedIds.length },
+      },
       'digest posted, watermark advanced',
     );
     // Digest is safely posted + watermark advanced — now the isolated tracker

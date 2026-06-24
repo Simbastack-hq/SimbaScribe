@@ -32,5 +32,13 @@
     "todoResurfaceDays": 5,
     "todoArchiveGraceDays": 9,
     "ideaRevisitDays": 60
+  },
+  "mentions": {
+    "enabled": false,
+    "roster": [
+      { "name": "Ada", "discordId": "100000000000000001" },
+      { "name": "Ben", "discordId": "100000000000000002" },
+      { "name": "Chiara", "discordId": "100000000000000003" }
+    ]
   }
 }
