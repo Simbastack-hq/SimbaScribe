@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parseChannelIds } from '../src/config.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import { parseChannelIds, optionalPositiveInt } from '../src/config.js';
 
 describe('parseChannelIds', () => {
   it('parses a single 18-digit snowflake', () => {
@@ -60,5 +60,52 @@ describe('parseChannelIds', () => {
 
   it('accepts the 20-digit upper bound', () => {
     expect(() => parseChannelIds('12345678901234567890')).not.toThrow();
+  });
+});
+
+describe('optionalPositiveInt', () => {
+  const NAME = 'SIMBASCRIBE_TEST_OPTIONAL_INT';
+  afterEach(() => {
+    delete process.env[NAME];
+  });
+
+  it('returns the fallback when the var is unset', () => {
+    delete process.env[NAME];
+    expect(optionalPositiveInt(NAME, 8192)).toBe(8192);
+  });
+
+  it('returns the fallback when the var is blank/whitespace', () => {
+    process.env[NAME] = '   ';
+    expect(optionalPositiveInt(NAME, 4096)).toBe(4096);
+  });
+
+  it('parses a valid positive integer', () => {
+    process.env[NAME] = '16384';
+    expect(optionalPositiveInt(NAME, 8192)).toBe(16384);
+  });
+
+  it('trims surrounding whitespace', () => {
+    process.env[NAME] = '  2048  ';
+    expect(optionalPositiveInt(NAME, 8192)).toBe(2048);
+  });
+
+  it('throws on a non-numeric value', () => {
+    process.env[NAME] = 'lots';
+    expect(() => optionalPositiveInt(NAME, 8192)).toThrow(/positive integer/);
+  });
+
+  it('throws on zero', () => {
+    process.env[NAME] = '0';
+    expect(() => optionalPositiveInt(NAME, 8192)).toThrow(/positive integer/);
+  });
+
+  it('throws on a negative value', () => {
+    process.env[NAME] = '-1';
+    expect(() => optionalPositiveInt(NAME, 8192)).toThrow(/positive integer/);
+  });
+
+  it('throws on a non-integer value', () => {
+    process.env[NAME] = '1.5';
+    expect(() => optionalPositiveInt(NAME, 8192)).toThrow(/positive integer/);
   });
 });
