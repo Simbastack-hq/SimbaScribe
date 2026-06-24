@@ -1,8 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import { optionalPositiveInt } from '../config.js';
 import type { Reconciliation } from './types.js';
 
-const MAX_TOKENS = 4096;
+// Tunable for busier workspaces: a reconcile that exceeds the cap throws (the
+// isolated tracker step swallows it, so the digest is unaffected) but the
+// tracker watermark does not advance, so an under-sized cap can wedge the
+// tracker into a compounding retry loop. Raise via SIMBASCRIBE_TRACKER_MAX_TOKENS.
+const MAX_TOKENS = optionalPositiveInt('SIMBASCRIBE_TRACKER_MAX_TOKENS', 4096);
 
 // Structural validation of the model's JSON (shape only — SEMANTIC validation
 // against open items / window ids is validateReconciliation's job). Unknown keys

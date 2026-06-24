@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { optionalPositiveInt } from '../config.js';
 import type { SynthConfig } from './config.js';
 
 export interface SynthResult {
@@ -12,7 +13,12 @@ export interface SynthResult {
 // safety ceiling — actual digests sit far below it — so hitting it signals a
 // runaway, which we treat as an error (see the max_tokens check) rather than
 // posting a truncated digest. Well under the streaming threshold.
-const MAX_TOKENS = 8192;
+//
+// Tunable for busier workspaces whose digests legitimately run longer: a digest
+// that exceeds the cap throws and does NOT advance the watermark, so an
+// under-sized cap can wedge the run into a compounding retry loop. Raise via
+// SIMBASCRIBE_DIGEST_MAX_TOKENS rather than editing this default.
+const MAX_TOKENS = optionalPositiveInt('SIMBASCRIBE_DIGEST_MAX_TOKENS', 8192);
 
 /**
  * Runs the synth model via its Anthropic-protocol endpoint (the @anthropic-ai/sdk

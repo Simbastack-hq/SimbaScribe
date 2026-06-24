@@ -10,6 +10,23 @@ export function required(name: string): string {
 }
 
 /**
+ * Reads an optional positive-integer env var. Returns `fallback` when the var is
+ * unset or blank. Throws on a present-but-invalid value (non-numeric, ≤ 0, or
+ * non-integer) so a typo fails loud at startup rather than silently falling back
+ * to the default. Used for tunable model output ceilings (see
+ * SIMBASCRIBE_DIGEST_MAX_TOKENS / SIMBASCRIBE_TRACKER_MAX_TOKENS).
+ */
+export function optionalPositiveInt(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`${name} must be a positive integer, got: ${JSON.stringify(raw)}`);
+  }
+  return n;
+}
+
+/**
  * Parses a comma-separated list of Discord channel snowflake IDs into a Set.
  *
  * Fails loud on:
